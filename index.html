@@ -42,6 +42,16 @@
      .img-m img {
        width: 100%;
      }
+     .img-l {
+       display: block;
+       margin: auto;
+       width: 800px;
+       height: auto;
+       vertical-align: middle;
+     }
+     .img-l img {
+       width: 100%;
+     }
      a,
      a:visited {
        color: inherit
@@ -51,6 +61,12 @@
      a:active {
        color: #09D4B0;
      }
+
+     .remark-code {
+       max-height: 400px;
+       overflow: scroll
+     }
+
     </style>
   </head>
   <body>
@@ -99,7 +115,7 @@
 
       --
 
-      ![me mentioning ggez in Kyiv](assets/kyiv.jpg)
+      .img-l[![me mentioning ggez in Kyiv](assets/kyiv.jpg)]
 
       ---
 
@@ -206,13 +222,11 @@
 
       ---
 
-      layout: false
-
-      ## Scope for this talk
-
-      [gif of rectangles](assets/talk)
+      ![gif of rectangles](assets/gameplay-cube.gif)
 
       ---
+
+      layout: false
 
       ## What we'll do
 
@@ -226,6 +240,10 @@
       class: center, middle
 
       # Let's start
+
+      --
+
+      [https://github.com/lislis/beyonce-brawles/commits/walkthrough](https://github.com/lislis/beyonce-brawles/commits/walkthrough)
 
       ---
 
@@ -243,6 +261,8 @@
       ggez = "0.3"
       rand = "0.3.14"
       ```
+
+      Add dependencies
       ---
 
       ``` rust
@@ -281,12 +301,14 @@
       }
 
       pub fn main() {
-          let c = conf::Conf::new();
+          let mut c = conf::Conf::new();
           let ctx = &mut Context::load_from_conf("super_simple", "ggez", c).unwrap();
           let state = &mut MainState::new(ctx).unwrap();
           event::run(ctx, state).unwrap();
       }
       ```
+
+      Copy stuff from the website landing page
 
       ---
 
@@ -303,6 +325,8 @@
 
       ```
 
+      Define some values and configure window
+
       ---
 
       ```rust
@@ -318,6 +342,8 @@
       const PLAYER_HOLDING_TIME_MAX: f32 = 6.0;
 
       ```
+      Define some more player related values
+
       ---
 
       ```rust
@@ -327,7 +353,7 @@
         x: f32,
         y: f32,
         sprite: graphics::Image,
-        hitarea: grpahics::Image,
+        hitarea: graphics::Image,
         h_x: f32,
         h_y: f32,
         h_w: f32,
@@ -336,6 +362,9 @@
       }
 
       ```
+
+      Create player struct
+
       ---
 
       ```rust
@@ -390,23 +419,248 @@
       }
 
       ```
+      Impl player
+
       ---
 
-      keyboard events
+      ```rust
+      # main.rs
 
-      smashable struct
+      use ggez::event::*;
 
-      spawn smashables
+      # ...
 
-      detect collision
+      struct MainState {
+        player: Player
+      }
+
+      impl MainState {
+        fn new(ctx: &mut Context) -> GameResult<MainState> {
+          let s = MainState {
+            player: Player::new(ctx)
+          };
+          Ok(s)
+        }
+      }
+
+      # ...
+
+      self.player.update();
+
+      # ...
+
+      self.player.draw(ctx)?;
+
+      ```
+
+      Put player into main state
+
+      ---
+
+      ```rust
+      # main.rs
+
+      fn key_down_event(&mut self, keycode: Keycode, _: Mod, _: bool) {
+        match keycode {
+            Keycode::Space => {
+                self.player.hold();
+            }
+            _ => {}
+        }
+      }
+      ```
+
+      Add key down event
+
+      ---
+
+      ```rust
+      # main.rs
+
+      fn key_up_event(&mut self, keycode: Keycode, _: Mod, _: bool) {
+        match keycode {
+            Keycode::Space => {
+                self.player.unhold();
+            }
+            _ => {}
+        }
+      }
+
+      ```
+
+      Add key up event
+      ---
+
+      ```rust
+      # main.rs
+
+      const SMASHABLE_X_LEFT: f32 = 135.0;
+      const SMASHABLE_X_RIGHT: f32 = 255.0;
+      const SMASHABLE_SPAWN_FACTOR: f32 = 550.0;
+      const SMASHABLES_PER_SCREEN: u32 = 13;
+      const SMASHABLE_W: f32 = 64.0;
+
+      ```
+      Define some more values for smashable things
+
+      ---
+
+      ```rust
+      # main.rs
+
+      struct Smashable {
+        x: f32,
+        y: f32,
+        active: bool,
+        sprite: graphics::Image
+      }
+
+      ```
+      Create smashable struct
+      ---
+
+      ```rust
+      # main.rs
+
+      extern crate rand;
+
+      use rand::Rng;
+
+      ```
+      Don't forget to import randomness
+      ---
+
+      ```rust
+      # main.rs
+
+      impl Smashable {
+        fn new(ctx: &mut Context) -> Smashable {
+          let mut rng = rand::thread_rng();
+          let y = rng.gen::<f32>() * SMASHABLE_SPAWN_FACTOR + 100.0; // magic number
+          let x:f32;
+          let ltr = rng.gen();
+          match ltr {
+            true => { x = SMASHABLE_X_LEFT }
+            false => { x = SMASHABLE_X_RIGHT }
+          }
+          let sprite = graphics::Image::new(ctx, "/thing.png").unwrap();
+
+          Smashable {
+            x: x,
+            y: y,
+            active: true,
+            sprite: sprite,
+          }
+        }
+
+        pub fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+          let point = graphics::Point::new(self.x, self.y);
+
+          if self.active {
+            graphics::draw(ctx, &self.sprite, point, 0.0)?;
+          }
+          Ok(())
+        }
+      }
+
+      ```
+      Impl smashable
+
+      ---
+
+      ```rust
+      # main.rs
+
+      smashables: Vec<Smashable>
+
+      # ...
+
+      let mut smashables = vec![];
+
+      for _ in 0..SMASHABLES_PER_SCREEN {
+        smashables.push(Smashable::new(ctx));
+      }
+
+      let s = MainState {
+        player: Player::new(ctx),
+        smashables: smashables
+      };
+
+      ```
+
+      Put smashable into MainState
+
+      ---
+
+      ```rust
+      # main.rs
+
+      for s in self.smashables.iter_mut() {
+        s.draw(ctx)?;
+      }
+
+      ```
+
+      Don't forget to draw smashables
+
+      ---
+
+      ```rust
+      # main.rs
+
+      fn key_up_event(&mut self, keycode: Keycode, _: Mod, _: bool) {
+        match keycode {
+            Keycode::Space => {
+                self.collision();
+                self.player.unhold();
+            }
+            _ => {}
+        }
+      }
+
+      ```
+      Add collision
+
+      ---
+
+      ```rust
+      # main.rs
+
+      pub fn collision(&mut self) {
+        if self.player.holding > PLAYER_HOLDING_TIME_MIN {
+            for s in self.smashables.iter_mut() {
+                if s.active {
+                    if self.player.h_x < s.x + SMASHABLE_W &&
+                        self.player.h_x + self.player.h_w > s.x &&
+                        self.player.h_y < s.y + SMASHABLE_W &&
+                        self.player.h_y + self.player.h_h > s.y {
+                            s.active = false;
+                        }
+                }
+            }
+        }
+      }
+
+      ```
+
+      Also add collision function
+
+      ---
+
+      class: center, middle
+
+      # Done!
 
       ---
 
       ## What is left to do
 
+      * Text!
+      * Timer!
+      * Score!
       * Graphics!
       * Sounds!
-      * Tweaking!
+      * (lots of) Tweaking!
 
       ---
 
@@ -428,6 +682,11 @@
 
     </textarea>
     <script src="remark.min.js"></script>
-    <script>var slideshow = remark.create({ratio: '16:9'});</script>
+    <script>var slideshow = remark.create({
+       ratio: '16:9',
+       navigation: {
+         scroll: false
+       }});
+    </script>
   </body>
 </html>
