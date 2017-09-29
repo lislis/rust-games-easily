@@ -400,22 +400,6 @@
             }
             Ok(())
         }
-
-        pub fn hold(&mut self) {
-            if self.holding > 0.0 {
-                self.holding += PLAYER_HOLDING_SPEED;
-
-                if self.holding > PLAYER_HOLDING_TIME_MAX {
-                    self.unhold();
-                }
-            } else {
-                self.holding = 0.1;
-            }
-        }
-
-        pub fn unhold(&mut self) {
-            self.holding = 0.0;
-        }
       }
 
       ```
@@ -459,6 +443,24 @@
 
       ```rust
       # main.rs
+
+      pub fn hold(&mut self) {
+        if self.holding > 0.0 {
+          self.holding += PLAYER_HOLDING_SPEED;
+
+          if self.holding > PLAYER_HOLDING_TIME_MAX {
+            self.unhold();
+          }
+        } else {
+          self.holding = 0.1;
+        }
+      }
+
+      pub fn unhold(&mut self) {
+        self.holding = 0.0;
+      }
+
+      # ...
 
       fn key_down_event(&mut self, keycode: Keycode, _: Mod, _: bool) {
         match keycode {
